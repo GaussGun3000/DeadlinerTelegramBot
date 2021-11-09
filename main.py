@@ -68,7 +68,7 @@ def deadliner0307():
         else:
             bot.send_message(message.chat.id, config.messages['not_verified'], reply_markup=command_keyboard())
 
-    @bot.message_handler(commands=['show_all', '/Список'])
+    @bot.message_handler(commands=['show_all', '📋Список'])
     def show_all(message, called: bool = False):  # output all deadlines (expired deadlines stored until daily restart)
         if len(deadlines) == 0:
             bot.send_message(message.chat.id, config.messages['nothing_left'], reply_markup=command_keyboard())
@@ -92,7 +92,7 @@ def deadliner0307():
             else:
                 bot.send_message(message.text, text, reply_markup=command_keyboard())
 
-    @bot.message_handler(commands=['add', '/Добавить'])
+    @bot.message_handler(commands=['add', '➕Добавить'])
     def add(message):  # adding a new deadline. Verified users only.
         if message.chat.id in config.VERIFIED_USERS:
             msg = bot.send_message(message.chat.id, config.messages['input_subj'])
@@ -176,7 +176,7 @@ def deadliner0307():
                                    f'{config.messages["wrong_input"]}\n\n{confirmation_text(new_dl)}')
             bot.register_next_step_handler(msg, confirm_dl, new_dl)
 
-    @bot.message_handler(commands=['delete', '/Удалить'])
+    @bot.message_handler(commands=['delete', '❌Удалить'])
     def delete(message):  # Deleting deadline last added by a verified user, any by an admin
         if message.chat.id in config.ADMINS:
             if len(deadlines):
@@ -226,7 +226,7 @@ def deadliner0307():
         except TypeError:
             bot.send_message(message.chat.id, config.messages["wrong_input"], reply_markup=command_keyboard())
 
-    @bot.message_handler(commands=['mark_done', '/Отметить'])
+    @bot.message_handler(commands=['mark_done', '✅/Отметить'])
     # user marks a task as done not to receive notifications about it
     def mark_done(message):
         if message.chat.id in subscribers.keys():
@@ -317,7 +317,7 @@ def deadliner0307():
                          reply_markup=command_keyboard())
         return uid
 
-    @bot.message_handler(commands=['get_my_id'])  # show list of admin commands [admin only]
+    @bot.message_handler(commands=['admin_help'])  # show list of admin commands [admin only]
     def admin_help(message):
         if message.chat.id in config.ADMINS:
             bot.send_message(message.chat.id, config.messages['admin_help'], reply_markup=None)
@@ -364,10 +364,10 @@ def deadliner0307():
     def command_keyboard():
         """ Puts all often used command in keyboard after bot completes a task (e.g., after adding a deadline)"""
         keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
-        add_btn = types.KeyboardButton('/Добавить')
-        mark_btn = types.KeyboardButton('/Отметить')
-        show_btn = types.KeyboardButton('/Список')
-        delete_btn = types.KeyboardButton('/Удалить')
+        add_btn = types.KeyboardButton('/➕Добавить')
+        mark_btn = types.KeyboardButton('/✅Отметить')
+        show_btn = types.KeyboardButton('/📋Список')
+        delete_btn = types.KeyboardButton('/❌Удалить')
         keyboard.row(show_btn, mark_btn)
         keyboard.row(add_btn, delete_btn)
         return keyboard
