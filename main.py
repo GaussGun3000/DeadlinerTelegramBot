@@ -162,11 +162,11 @@ def deadliner0307():
                 deadlines.append(new_dl)
                 database.save_deadline(new_dl, 0)
                 deadlines.sort()
-                bot.send_message(message.chat.id, config.messages['successful_add'])
+                bot.send_message(message.chat.id, config.messages['successful_add'], reply_markup=command_keyboard())
                 last_added[message.chat.id] = new_dl
                 deadline_names.append(f'{new_dl.subject} | {new_dl.task}')
             elif message.text == 'Нет':
-                bot.send_message(message.chat.id, config.messages['deleted'])
+                bot.send_message(message.chat.id, config.messages['deleted'], reply_markup=command_keyboard())
             else:
                 msg = bot.send_message(message.chat.id,
                                        f'{config.messages["oops"]}\n\n{confirmation_text(new_dl)}')
