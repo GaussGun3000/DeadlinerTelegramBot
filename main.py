@@ -90,7 +90,7 @@ def deadliner0307():
             if called:
                 bot.send_message(message.chat.id, text)
             else:
-                bot.send_message(message.text, text, reply_markup=command_keyboard())
+                bot.send_message(message.chat.id, text, reply_markup=command_keyboard())
 
     @bot.message_handler(commands=['add', '➕Добавить'])
     def add(message):  # adding a new deadline. Verified users only.
@@ -124,11 +124,11 @@ def deadliner0307():
             bot.register_next_step_handler(msg, get_task, new_dl)
 
     def get_date(message, new_dl: Deadline, edit_flag: bool):
-        """Getting Deadline date value. Requires user to follow specific format.
+        """Getting Deadline date value. Requires user to follow specific format ("dd.mm HH:MM").
          Edit = True doesn't trigger next step (for edit menu)"""
         text = message.text
         if type(text) == str:
-            try:  # trying to convert users' input to timestamp. If users' input is wrong, tell them to try again
+            try:  # trying to convert user's input to timestamp. If user's input is wrong, tell them to try again
                 text += f' {datetime.now().year}'
                 date_stamp = datetime.strptime(text, '%d.%m %H:%M %Y').timestamp()
                 if date_stamp > datetime.now().timestamp():  # if user's date is from the past, tell them to try again
@@ -226,7 +226,7 @@ def deadliner0307():
         except TypeError:
             bot.send_message(message.chat.id, config.messages["wrong_input"], reply_markup=command_keyboard())
 
-    @bot.message_handler(commands=['mark_done', '✅/Отметить'])
+    @bot.message_handler(commands=['mark_done', '✅Отметить'])
     # user marks a task as done not to receive notifications about it
     def mark_done(message):
         if message.chat.id in subscribers.keys():
