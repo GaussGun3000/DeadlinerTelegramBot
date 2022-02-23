@@ -9,11 +9,11 @@ from telebot.apihelper import ApiTelegramException
 import config
 from telebot import types
 # release Data Management:
-#from database import Deadline
-#import database
+from database import Deadline
+import database
 # debug DM:
-from debug import database
-from debug.database import Deadline
+#from debug import database
+#from debug.database import Deadline
 
 """
 TODO LIST:
@@ -104,11 +104,11 @@ def deadliner0307():
     def add(message):  # adding a new deadline. Verified users only.
         if message.chat.id in config.VERIFIED_USERS:
             msg = bot.send_message(message.chat.id, config.messages['input_subj'])
-            bot.register_next_step_handler(msg, get_subject)
+            bot.register_next_step_handler(msg, get_subject, Deadline())
         else:
             bot.send_message(message.chat.id, config.messages['not_verified'])
 
-    def get_subject(message, new_deadline: Deadline = Deadline(), edit_flag: bool = False):
+    def get_subject(message, new_deadline, edit_flag: bool = False):
         """Reading user's message, writing into subject of new deadline
         If new_deadline arg is passed, then editing its contents
         (for edit mode edit_flag should be true to proceed straight to confirm message)"""
@@ -180,6 +180,7 @@ def deadliner0307():
     def confirm_dl(message, new_dl: Deadline):  # getting confirmation to add a new deadline.
         try:
             if message.text == 'Да':
+                print(id(new_dl))
                 new_dl.notified = 0
                 deadlines.append(new_dl)
                 database.save_deadline(new_dl, 0)

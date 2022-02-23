@@ -4,11 +4,11 @@ import random
 from telebot import types
 
 # release Data Management:
-#from database import Deadline
-#import database
+from database import Deadline
+import database
 # debug DM:
-from debug import database
-from debug.database import Deadline
+#from debug import database
+#from debug.database import Deadline
 
 from datetime import datetime
 import pytz
