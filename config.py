@@ -1,5 +1,5 @@
-TOKEN = '1952354939:AAFjMHF71cMzdKiCoDL0r4q3XxSKSSW1LzM'  # release
-# TOKEN = '1979874925:AAEBMEJxG9iPukMRa6CJ1C1LplejQOxSM_Q'  # test
+#TOKEN = '1952354939:AAFjMHF71cMzdKiCoDL0r4q3XxSKSSW1LzM'  # release
+TOKEN = '1979874925:AAEBMEJxG9iPukMRa6CJ1C1LplejQOxSM_Q'  # test
 # constant strings:
 messages = {
     'start': 'Welcоme! Это бот по контролю дедлайнов группы 0307. Доступ к функциям имеют только подтвержденные админом'
@@ -46,10 +46,11 @@ messages = {
     'len_limit': 'Предельная длина сообщения - 4000 символов. Попробуйте что-нибудь покороче!',
     'choose_edit': 'Выберите редактируемый дедлайн',
     'date_edited': 'Новая дата сохранена.',
+    'choose_property': 'Что редактируем?'
 }
 # verification process is manual for safety. Just add needed id to this list to give user add right (and redeploy)
 VERIFIED_USERS = [405810751, 340185927, 1161517629, 474776926, 464209002, 924557178, 455180878, 122874751, 510901162
-                  , 777456537, 1222636987, 1258491135, 451098228, 357512400, 479882064, 716382198, 511142517, 727712544,
+                  , 777456537, 1222636987, 1258491135, 451098228, 357512400, 479882064, 716382198, 727712544,
                   1383023738, 272573291, 329352234, 296437275]
 ADMINS = [405810751, 474776926, 924557178, 340185927]
 PERIOD = 1800  # time between periodic tasks in sec

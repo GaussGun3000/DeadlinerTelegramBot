@@ -1,16 +1,24 @@
 import time
 from datetime import datetime
 from threading import Thread
-import pytz
+import my_collections
+from my_collections import command_keyboard, delta_days, y_n_keyboard, y_n_edit_keyboard, confirmation_text, \
+    convert_date
 import telebot
+from telebot.apihelper import ApiTelegramException
 import config
-import database
 from telebot import types
-from database import Deadline
+# release Data Management:
+#from database import Deadline
+#import database
+# debug DM:
+from debug import database
+from debug.database import Deadline
 
 """
 TODO LIST:
-- edit new deadline in confirm menu
+- early completion reward
+- notification profiles
 """
 
 
@@ -73,7 +81,7 @@ def deadliner0307():
         if len(deadlines) == 0:
             bot.send_message(message.chat.id, config.messages['nothing_left'], reply_markup=command_keyboard())
         else:
-            text = f'Сейчас {current_time().strftime("%d.%m %H:%M")}\n' + f'{config.messages["deadlines"]}\n'
+            text = f'Сейчас {my_collections.current_time().strftime("%d.%m %H:%M")}\n' + f'{config.messages["deadlines"]}\n'
             for dl in deadlines:
                 text += f' -- \"{dl.subject}\" - \"{dl.task}\"\nдо [{convert_date(dl.date)}]'
                 if subscribers.get(message.chat.id) and dl in subscribers.get(
@@ -100,24 +108,37 @@ def deadliner0307():
         else:
             bot.send_message(message.chat.id, config.messages['not_verified'])
 
-    def get_subject(message):  # reading user's message, writing into subject of new deadline
+    def get_subject(message, new_deadline: Deadline = Deadline(), edit_flag: bool = False):
+        """Reading user's message, writing into subject of new deadline
+        If new_deadline arg is passed, then editing its contents
+        (for edit mode edit_flag should be true to proceed straight to confirm message)"""
         text = message.text
         if type(text) == str:
-            new_deadline = Deadline()
             new_deadline.subject = text
-            msg = bot.send_message(message.chat.id, config.messages['input_task'])
-            bot.register_next_step_handler(msg, get_task, new_deadline)
+            if edit_flag:
+                msg = bot.send_message(message.chat.id, confirmation_text(new_deadline),
+                                       reply_markup=y_n_edit_keyboard())
+                bot.register_next_step_handler(msg, confirm_dl, new_deadline)
+            else:
+                msg = bot.send_message(message.chat.id, config.messages['input_task'])
+                bot.register_next_step_handler(msg, get_task, new_deadline)
         else:
             msg = bot.send_message(message.chat.id,
                                    f'{config.messages["wrong_input"]}\n\n{config.messages["input_subj"]}')
             bot.register_next_step_handler(msg, get_subject)
 
-    def get_task(message, new_dl: Deadline):  # same as above: getting task value.
+    def get_task(message, new_dl: Deadline, edit_flag: bool = False):
+        """Getting new task value or editing it for existing deadline object
+        (for edit mode edit_flag should be true to proceed straight to confirm message)"""
         text = message.text
         if type(text) == str:
             new_dl.task = text
-            msg = bot.send_message(message.chat.id, config.messages['input_date'])
-            bot.register_next_step_handler(msg, get_date, new_dl, False)
+            if edit_flag:
+                msg = bot.send_message(message.chat.id, confirmation_text(new_dl), reply_markup=y_n_edit_keyboard())
+                bot.register_next_step_handler(msg, confirm_dl, new_dl)
+            else:
+                msg = bot.send_message(message.chat.id, config.messages['input_date'])
+                bot.register_next_step_handler(msg, get_date, new_dl, False)
         else:
             msg = bot.send_message(message.chat.id,
                                    f'{config.messages["wrong_input"]}\n\n{config.messages["input_task"]}')
@@ -144,7 +165,8 @@ def deadliner0307():
                         send_notification(new_dl, True)
                     else:
                         new_dl.date = date_stamp
-                        msg = bot.send_message(message.chat.id, confirmation_text(new_dl), reply_markup=y_n_keyboard())
+                        msg = bot.send_message(message.chat.id, confirmation_text(new_dl),
+                                               reply_markup=y_n_edit_keyboard())
                         bot.register_next_step_handler(msg, confirm_dl, new_dl)
                 else:
                     msg = bot.send_message(message.chat.id,
@@ -167,6 +189,10 @@ def deadliner0307():
                 deadline_names.append(f'{new_dl.subject} | {new_dl.task}')
             elif message.text == 'Нет':
                 bot.send_message(message.chat.id, config.messages['deleted'], reply_markup=command_keyboard())
+            elif message.text == 'Редактировать':
+                msg = bot.send_message(message.chat.id, config.messages['choose_property'],
+                                       reply_markup=my_collections.properties_keyboard())
+                bot.register_next_step_handler(msg, edit_new, new_dl)
             else:
                 msg = bot.send_message(message.chat.id,
                                        f'{config.messages["oops"]}\n\n{confirmation_text(new_dl)}')
@@ -175,6 +201,25 @@ def deadliner0307():
             msg = bot.send_message(message.chat.id,
                                    f'{config.messages["wrong_input"]}\n\n{confirmation_text(new_dl)}')
             bot.register_next_step_handler(msg, confirm_dl, new_dl)
+
+    def edit_new(message: types.Message, new_dl: Deadline):
+        try:
+            if message.text == 'Время':
+                msg = bot.send_message(message.chat.id, config.messages['input_date'])
+                bot.register_next_step_handler(msg, get_date, new_dl, False)
+            elif message.text == 'Предмет':
+                msg = bot.send_message(message.chat.id, config.messages['input_subj'])
+                bot.register_next_step_handler(msg, get_subject, new_dl, True)
+            elif message.text == 'Задание':
+                msg = bot.send_message(message.chat.id, config.messages['input_task'])
+                bot.register_next_step_handler(msg, get_task, new_dl, True)
+            elif message.text == 'Отмена':
+                msg = bot.send_message(message.chat.id, confirmation_text(new_dl), reply_markup=y_n_edit_keyboard())
+                bot.register_next_step_handler(msg, confirm_dl, new_dl)
+            else:
+                bot.send_message(message.chat.id, config.messages["oops"], reply_markup=command_keyboard())
+        except TypeError:
+            bot.send_message(message.chat.id, config.messages["wrong_input"], reply_markup=command_keyboard())
 
     @bot.message_handler(commands=['delete', '❌Удалить'])
     def delete(message):  # Deleting deadline last added by a verified user, any by an admin
@@ -250,6 +295,7 @@ def deadliner0307():
                 dl_list = list()  # preparing to update marked tasks in database
                 for dl in subscribers[uid]:
                     dl_list.append(f'{dl.subject} | {dl.task}')
+                # my_collections.send_reward()
                 database.save_sub(uid, dl_list, 2)
             elif text == 'Отмена':
                 bot.send_message(message.chat.id, config.messages['cancel'], reply_markup=command_keyboard())
@@ -284,9 +330,16 @@ def deadliner0307():
     def message_all(text: str, sender: int):
         """Send a message to all subs with following text, ignoring sender"""
         for uid in subscribers.keys():
-            if uid != sender:
-                bot.send_message(uid, text)
-                time.sleep(0.05)
+            try:
+                if uid != sender:
+                    bot.send_message(uid, text)
+                    time.sleep(0.05)
+            except ApiTelegramException as ex:
+                if str(ex.result_json['description']) == "Forbidden: bot was blocked by the user":
+                    database.save_sub(uid, None, 1)
+                    print("Cleaned a subscriber who blocked the bot.")
+                else:
+                    print(f"EXCEPTION ON SEND ANNOUNCEMENT:\n{ex}")
 
     @bot.message_handler(commands=['edit'])
     def edit(message):  # edit date of a deadline. Admin function.
@@ -328,48 +381,12 @@ def deadliner0307():
     def on_text(message):
         bot.send_message(message.chat.id, config.messages['on_text'], reply_markup=command_keyboard())
 
-    def confirmation_text(dl: Deadline):
-        """String to be sent in a message before confirmation of a new deadline"""
-        text = f'Подтверждаете добавление:\n Предмет: {dl.subject}\n Задание: {dl.task}\nСрок: {convert_date(dl.date)}?'
-        return text
-
-    def y_n_keyboard():
-        """Return keyboard containing buttons "Yes" and "No" """
-        markup = types.ReplyKeyboardMarkup(one_time_keyboard=True)
-        yes_button = types.KeyboardButton('Да')
-        no_button = types.KeyboardButton('Нет')
-        markup.row(yes_button, no_button)
-        return markup
-
-    def current_time():
-        """Returns UTC +3 datetime object"""
-        return datetime.now(pytz.timezone('Europe/Moscow')).replace(tzinfo=None)
-
-    def convert_date(date: float):
-        """Converts timestamp to normal russian date format"""
-        return datetime.fromtimestamp(date).strftime('%d.%m %H:%M')
-
-    def delta_days(dl: Deadline):
-        """Returns days left before deadline"""
-        return (datetime.fromtimestamp(dl.date) - current_time()).days
-
     def all_dl_keyboard():
         """ Puts all deadlines in a keyboard as different buttons. Returns the keyboard object """
         keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True)
         for dl in deadlines:
             keyboard.add(types.KeyboardButton(f'{dl.subject} | {dl.task}'))
         keyboard.add(types.KeyboardButton('Отмена'))
-        return keyboard
-
-    def command_keyboard():
-        """ Puts all often used command in keyboard after bot completes a task (e.g., after adding a deadline)"""
-        keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
-        add_btn = types.KeyboardButton('/➕Добавить')
-        mark_btn = types.KeyboardButton('/✅Отметить')
-        show_btn = types.KeyboardButton('/📋Список')
-        delete_btn = types.KeyboardButton('/❌Удалить')
-        keyboard.row(show_btn, mark_btn)
-        keyboard.row(add_btn, delete_btn)
         return keyboard
 
     def auto_task():
@@ -381,7 +398,7 @@ def deadliner0307():
 
     def clear_past():  # clear all expired deadlines from DATABASE (not deadlines list)
         for dl in deadlines:
-            if current_time().timestamp() > dl.date:
+            if my_collections.current_time().timestamp() > dl.date:
                 database.save_deadline(dl, 1)
                 dl.is_past = True
 
@@ -420,10 +437,18 @@ def deadliner0307():
         # don't send notification if user has marked a task as done.
         # subscribers.get(uid) is needed to avoid exceptions on empty list of marked_done tasks
         for uid in subscribers.keys():
-            # "or not subscribers.get(uid, None)" needed to actually notify anyone with empty marked_done list
-            if (subscribers.get(uid) and dl not in subscribers.get(uid)) or not subscribers.get(uid, None):
-                bot.send_message(uid, text)
-                time.sleep(0.05)
+            try:
+                # "or not subscribers.get(uid, None)" needed to actually notify anyone with empty marked_done list
+                if (subscribers.get(uid) and dl not in subscribers.get(uid)) or not subscribers.get(uid, None):
+                    bot.send_message(uid, text)
+                    time.sleep(0.1)
+            except ApiTelegramException as ex:
+                if str(ex.result_json['description']) == "Forbidden: bot was blocked by the user":
+                    database.save_sub(uid, None, 1)
+                    send_notification(dl, update)
+                    print("Cleaned a subscriber who blocked the bot.")
+                else:
+                    print(f"EXCEPTION ON SEND NOTIFICATION:\n{ex}")
 
     Thread(target=auto_task).start()
     bot.polling(none_stop=True, interval=1)
