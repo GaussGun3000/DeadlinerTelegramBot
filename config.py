@@ -1,5 +1,5 @@
-TOKEN = '1952354939:AAFjMHF71cMzdKiCoDL0r4q3XxSKSSW1LzM'  # release
-#TOKEN = '1979874925:AAEBMEJxG9iPukMRa6CJ1C1LplejQOxSM_Q'  # test
+#TOKEN = '1952354939:AAFjMHF71cMzdKiCoDL0r4q3XxSKSSW1LzM'  # release
+TOKEN = '1979874925:AAEBMEJxG9iPukMRa6CJ1C1LplejQOxSM_Q'  # test
 # constant strings:
 messages = {
     'start': 'Welcоme! Это бот по контролю дедлайнов группы 0307. Доступ к функциям имеют только подтвержденные админом'

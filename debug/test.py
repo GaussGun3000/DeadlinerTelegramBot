@@ -1,4 +1,4 @@
-from debug import database
+
 
 '''ts = datetime.now()
 ts2 = datetime.strptime('2021-09-30-18-30', '%Y-%m-%d-%H-%M')
@@ -33,13 +33,7 @@ deadlines = database.load()
 deadlines.append(database.Deadline(subject='new', task='some task', date=datetime.strptime('6.10 19:00 2021', '%d.%m %H:%M %Y').timestamp()))
 deadlines.sort()
 print(text(deadlines))"""
-x = 0
 
-try:
-    print("shit")
-    t = 10//x
-except Exception as ex:
-    print(ex)
 
 '''
 MSC = datetime.now(pytz.timezone('Europe/Moscow'))

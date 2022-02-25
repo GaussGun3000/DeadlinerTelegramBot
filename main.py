@@ -1,3 +1,4 @@
+import pybrake
 import time
 from datetime import datetime
 from threading import Thread
@@ -455,5 +456,24 @@ def deadliner0307():
     bot.polling(none_stop=True, interval=1)
 
 
+def exception_handler(count: int = 0):
+    """Relaunching bot unless exceptions occur more than 2 times a day (script is reset daily on Heroku)"""
+    if count < 3:
+        if count > 0:
+            print("An exception occurred, sleeping and relaunching . . .")
+            time.sleep(30)
+        try:
+            deadliner0307()
+        except Exception as ex:
+            count += 1
+            if count == 3:
+                print("Too much exceptions occurred, shutting down . . .")
+            notifier = pybrake.Notifier(project_id=399289,
+                                        project_key='129d3450356965175fda762b69e1babf',
+                                        environment='production')
+            notifier.notify(ex)
+            exception_handler(count)
+
+
 if __name__ == '__main__':
-    deadliner0307()
+    exception_handler()
