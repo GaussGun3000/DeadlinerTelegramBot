@@ -84,3 +84,5 @@ def send_reward():
     if (reward_type == 0):  # send anekdot
         anekdot = database.load_reward()
 
+
+#comment
