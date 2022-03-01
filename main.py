@@ -440,12 +440,13 @@ def deadliner0307():
         for uid in subscribers.keys():
             try:
                 # "or not subscribers.get(uid, None)" needed to actually notify anyone with empty marked_done list
-                if (subscribers.get(uid) and dl not in subscribers.geFpt(uid)) or not subscribers.get(uid, None):
+                if (subscribers.get(uid) and dl not in subscribers.get(uid)) or not subscribers.get(uid, None):
                     bot.send_message(uid, text)
                     time.sleep(0.03)
             except ApiTelegramException as ex:
                 if str(ex.result_json['description']) == "Forbidden: bot was blocked by the user":
                     database.save_sub(uid, None, 1)
+                    subscribers.pop(uid)
                     print(f"Cleaned a subscriber who blocked the bot. ({uid})")
                     send_notification(dl, update)
                 else:
