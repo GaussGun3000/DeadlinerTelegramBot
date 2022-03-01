@@ -453,7 +453,7 @@ def deadliner0307():
                     print(f"EXCEPTION ON SEND NOTIFICATION:\n{ex}")
 
     Thread(target=auto_task).start()
-    bot.polling(none_stop=True, interval=1)
+    bot.infinity_polling()
 
 
 def exception_handler(count: int = 0):
