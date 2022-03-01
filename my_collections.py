@@ -20,7 +20,7 @@ def confirmation_text(dl: Deadline):
 
 
 def properties_keyboard():
-    """Return keyboard containing buttons "Yes" and "No" """
+    """Return keyboard containing buttons to choose property of a Deadline to edit """
     markup = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
     time_button = types.KeyboardButton('Время')
     name_button = types.KeyboardButton('Предмет')
@@ -85,4 +85,4 @@ def send_reward():
         anekdot = database.load_reward()
 
 
-#comment
+#comment #test

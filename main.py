@@ -181,7 +181,6 @@ def deadliner0307():
     def confirm_dl(message, new_dl: Deadline):  # getting confirmation to add a new deadline.
         try:
             if message.text == 'Да':
-                print(id(new_dl))
                 new_dl.notified = 0
                 deadlines.append(new_dl)
                 database.save_deadline(new_dl, 0)
@@ -339,7 +338,7 @@ def deadliner0307():
             except ApiTelegramException as ex:
                 if str(ex.result_json['description']) == "Forbidden: bot was blocked by the user":
                     database.save_sub(uid, None, 1)
-                    print("Cleaned a subscriber who blocked the bot.")
+                    print(f"Cleaned a subscriber who blocked the bot ({uid})")
                 else:
                     print(f"EXCEPTION ON SEND ANNOUNCEMENT:\n{ex}")
 
@@ -441,14 +440,14 @@ def deadliner0307():
         for uid in subscribers.keys():
             try:
                 # "or not subscribers.get(uid, None)" needed to actually notify anyone with empty marked_done list
-                if (subscribers.get(uid) and dl not in subscribers.get(uid)) or not subscribers.get(uid, None):
+                if (subscribers.get(uid) and dl not in subscribers.geFpt(uid)) or not subscribers.get(uid, None):
                     bot.send_message(uid, text)
-                    time.sleep(0.1)
+                    time.sleep(0.03)
             except ApiTelegramException as ex:
                 if str(ex.result_json['description']) == "Forbidden: bot was blocked by the user":
                     database.save_sub(uid, None, 1)
+                    print(f"Cleaned a subscriber who blocked the bot. ({uid})")
                     send_notification(dl, update)
-                    print("Cleaned a subscriber who blocked the bot.")
                 else:
                     print(f"EXCEPTION ON SEND NOTIFICATION:\n{ex}")
 
@@ -461,18 +460,18 @@ def exception_handler(count: int = 0):
     if count < 3:
         if count > 0:
             print("An exception occurred, sleeping and relaunching . . .")
-            time.sleep(30)
+            time.sleep(10)
         try:
             deadliner0307()
         except Exception as ex:
             count += 1
-            if count == 3:
-                print("Too much exceptions occurred, shutting down . . .")
             notifier = pybrake.Notifier(project_id=399289,
                                         project_key='129d3450356965175fda762b69e1babf',
                                         environment='production')
             notifier.notify(ex)
             exception_handler(count)
+    else:
+        print("Too much exceptions occurred, shutting down . . .")
 
 
 if __name__ == '__main__':

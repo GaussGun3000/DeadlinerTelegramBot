@@ -3,8 +3,6 @@ import os
 import config
 from dataclasses import dataclass, field
 
-"""NOTE: This is far not the best way to work with a postgres database, but works for a small project"""
-
 
 @dataclass
 class Deadline:
