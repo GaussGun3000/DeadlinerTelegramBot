@@ -1,17 +1,15 @@
-# collection of subfunctions like markup keyboard constructors, not using local values from main.
-import random
+# collection of subfunctions like markup keyboard constructors, time converters and others
 
 from telebot import types
 
 # release Data Management:
 from database import Deadline
 import database
-# debug DM:
-#from debug import database
-#from debug.database import Deadline
+
 
 from datetime import datetime
 import pytz
+
 
 def confirmation_text(dl: Deadline):
     """String to be sent in a message before confirmation of a new deadline"""
@@ -78,11 +76,12 @@ def command_keyboard():
     return keyboard
 
 
-def send_reward():
-    """Send reward to a subscriber for marking a task as done"""
-    reward_type = random.Random().randint() % 2
-    if (reward_type == 0):  # send anekdot
-        anekdot = database.load_reward()
-
-
-#comment #test
+def deadline_from_input(input_text: str, deadlines: list[Deadline]):
+    """Get the deadline object by user import (on delete and edit)"""
+    try:
+        split = input_text.split(' ', 1)
+        dl_id = int(split[0])
+        return Deadline.find(dl_id, deadlines)
+    except ValueError:
+        print("Value error at deadline_from_input!")
+        return None

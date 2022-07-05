@@ -4,6 +4,8 @@
 ts2 = datetime.strptime('2021-09-30-18-30', '%Y-%m-%d-%H-%M')
 delta = ts2-ts
 print(f'{delta.days} {round(delta.seconds / 3600, 1)}')'''
+import database
+
 '''text = str(input())
 text += f' {datetime.now().year}'
 date = datetime.strptime(text, '%d.%m %H:%M %Y').timestamp()
@@ -38,3 +40,5 @@ print(text(deadlines))"""
 '''
 MSC = datetime.now(pytz.timezone('Europe/Moscow'))
 print(MSC.strftime('%d.%m %H:%M'))'''
+from .. import database
+database.__connect()

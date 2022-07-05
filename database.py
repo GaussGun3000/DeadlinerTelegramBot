@@ -1,23 +1,33 @@
+from typing import Union
+
 import psycopg2
 import os
-import config
+
 from dataclasses import dataclass, field
 
 
 @dataclass
 class Deadline:
+    id: int = 0
     subject: str = None
     task: str = None
     date: float = 0  # date as a timestamp
-    reminder_days: int = 0  # days before expiry to start reminding
     is_past: bool = False  # whether a deadline has passed.
     notified: int = 0  # whether subs were notified about a deadline. 7 - week before, 3 - 3 days before, 1 - a day before
 
     def __lt__(self, other):
-        return self.date < other.date
+        return self.date < other.date  # defines list sorting (by date)
+
+    @staticmethod
+    def find(dl_id: int, dl_list: list):
+        res = [dl for dl in dl_list if dl.id == dl_id]
+        if len(res):
+            return res[0]
+        else:
+            raise(IndexError("Deadlines.find(): no deadline with this ID"))
 
 
-def deadline_by_name(name: str, deadlines: list):  # find a Deadline object by subject and task
+def deadline_by_name(name: str, deadlines: list[Deadline]):  # find a Deadline object by subject and task
     subj, task = name.split(' | ')
     for dl in deadlines:
         if dl.subject == subj and dl.task == task:
@@ -25,39 +35,52 @@ def deadline_by_name(name: str, deadlines: list):  # find a Deadline object by s
     return None
 
 
-DATABASE_URL = os.environ['DATABASE_URL']
+def __connect():
+    """defines which database to connect (debug or release)"""
+    dir_path = os.path.dirname(os.path.realpath(__file__))
+    if dir_path == "C:\\Users\\vva07\\OneDrive\\Документы\\проекты\\Deadliner0307":  # debug
+        import pwd
+        return psycopg2.connect(host="localhost", port="5432", user="postgres", password=pwd.password, database="Deadliner0307")
+    else:  # release
+        DATABASE_URL = os.environ['DATABASE_URL']
+        return psycopg2.connect(DATABASE_URL, sslmode='require')
 
 
 def save_deadline(dl: Deadline, add: int):
-    """ Saving a Deadline example to database.
-    Add param: 0 - add, 1 - remove, 2 - update """
-    with psycopg2.connect(DATABASE_URL, sslmode='require') as db:
+    """
+     :param add: Defines action: 0 - add new row, 1 - remove row, 2 - update row
+
+     Saving a Deadline example to database.
+     """
+    with __connect() as db:
         subject = dl.subject
         task = dl.task
         date = dl.date
-        reminder_days = dl.reminder_days
         notified = dl.notified
         try:
             cursor = db.cursor()
             if add == 0:
-                query = """INSERT INTO deadlines (subject, task, date, reminder_days, notified) VALUES (%s,%s,%s,%s,%s)"""
-                cursor.execute(query, (subject, task, date, reminder_days, notified))
+                query = """INSERT INTO deadlines (subject, task, date, notified) VALUES (%s,%s,%s,%s,%s)"""
+                cursor.execute(query, (subject, task, date, notified))
             elif add == 1:
                 query = """DELETE from deadlines where subject=%s AND task=%s"""
                 cursor.execute(query, (subject, task))
             else:
-                query = """UPDATE deadlines set notified=%s, reminder_days=%s, date=%s where subject=%s AND task=%s"""
-                cursor.execute(query, (notified, reminder_days, date, subject, task))
+                query = """UPDATE deadlines set notified=%s, date=%s where subject=%s AND task=%s"""
+                cursor.execute(query, (notified, date, subject, task))
             cursor.close()
             db.commit()
         except psycopg2.Error as er:
             print('DATABASE ON SAVE DL EXCEPTION:\n', er)
 
 
-def save_sub(user_id: int, marked_done: list, add: int):
-    """ Saving a subscriber and his tasks marked as done to database.
-    Add param: 0 - add, 1 - remove, 2 - update """
-    with psycopg2.connect(DATABASE_URL, sslmode='require') as db:
+def save_sub(user_id: int, marked_done: Union[list, None], add: int):
+    """
+    :param add: Defines action: 0 - add new row, 1 - remove row, 2 - update row
+
+    Saving a subscriber and his tasks marked as done to database.
+    """
+    with __connect() as db:
         try:
             cursor = db.cursor()
             if add == 0:
@@ -75,25 +98,34 @@ def save_sub(user_id: int, marked_done: list, add: int):
             print('DATABASE ON SAVE SUB EXCEPTION:\n', er)
 
 
-def load():
-    with psycopg2.connect(DATABASE_URL, sslmode='require') as db:
+def clear_marked(dl_id: int):
+    with __connect() as db:
         try:
             cursor = db.cursor()
-            query = """SELECT subject, task, date, reminder_days, notified FROM deadlines ORDER BY date"""
+            query = """UPDATE subscribers set marked_done = array_remove(marked_done, %s) WHERE %s = any(marked_done)"""
+            cursor.execute(query, (dl_id, dl_id))
+            cursor.close()
+            db.commit()
+        except psycopg2.Error as er:
+            print('DATABASE ON SAVE SUB EXCEPTION:\n', er)
+
+
+def load():
+    with __connect() as db:
+        try:
+            cursor = db.cursor()
+            query = """SELECT dl_id, subject, task, date, notified FROM deadlines ORDER BY date"""
             cursor.execute(query)
             deadlines = list()
             for data in cursor:
-                deadlines.append(Deadline(subject=data[0], task=data[1], date=data[2], reminder_days=data[3], notified=data[4]))
+                deadlines.append(Deadline(id=data[0], subject=data[1], task=data[2], date=data[3],
+                                          notified=data[4]))
             query = """SELECT user_id, marked_done FROM subscribers"""
             cursor.execute(query)
             subscribers = dict()
             for data in cursor:
                 if data[1]:
-                    subscribers[data[0]] = data[1].split('_')
-                    for marked_done in subscribers[data[0]]:  # cleaning deleted deadlines from marked_tasks for each subscriber
-                        if not deadline_by_name(marked_done, deadlines):
-                            subscribers[data[0]].remove(marked_done)
-                    save_sub(data[0], subscribers[data[0]], 2)
+                    subscribers[int(data[0])] = [Deadline.find(x, deadlines) for x in data[1]]
                 else:
                     subscribers[data[0]] = list()
             return deadlines, subscribers

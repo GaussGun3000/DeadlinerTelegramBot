@@ -9,15 +9,14 @@ import telebot
 from telebot.apihelper import ApiTelegramException
 import config
 from telebot import types
-# release Data Management:
+
 from database import Deadline
 import database
-# debug DM:
-#from debug import database
-#from debug.database import Deadline
+
 
 """
 TODO LIST:
+- REFACTOR
 - early completion reward
 - notification profiles
 """
@@ -28,34 +27,21 @@ def deadliner0307():
     # list of Deadline data objects (check database.py); dict of users subscribed and tasks they marked as done:
     deadlines, subscribers = database.load()
 
-    def deadline_by_name(name: str):
-        """find a Deadline object in list of all by "name" - subject and task"""
-        subj, task = name.split(' | ')
-        for dl in deadlines:
-            if dl.subject == subj and dl.task == task:
-                return dl
-
-    deadline_names = list()  # <Bad code architecture>
-    for dln in deadlines:  # list of "deadline names" to help "delete deadline" code
-        deadline_names.append(f'{dln.subject} | {dln.task}')
-    for tasks_key, tasks_done in subscribers.items():
-        dls = list()
-        for dl_str in tasks_done:
-            if dl_str in deadline_names:
-                dls.append(deadline_by_name(dl_str))
-        subscribers[tasks_key] = dls  # </Bad code architecture>
+    deadline_names = list()  # list of "deadline names" to verify user input is from telegram keyboard
+    for dln in deadlines:
+        deadline_names.append(f'{dln.id} {dln.subject} | {dln.task}')
 
     print(subscribers, deadline_names, sep='\n')
-    last_added = dict()  # user <-> his last added. To clear accidentally added deadlines by user themself. Dict resets daily!
+    last_added = dict()  # user <-> his last added deadline. To clear accidentally added deadlines by user themself. Dict resets daily!
 
     @bot.message_handler(commands='start')
     def start(message):
         bot.send_message(message.chat.id, config.messages['start'] + config.messages['commands'],
                          reply_markup=command_keyboard())
 
-    # noinspection PyTypeChecker
     @bot.message_handler(commands='subscribe')
-    def sub(message):  # adding a user to subscribers list on his command if not already
+    def sub(message: types.Message):
+        """Adding a user to subscribers list on his command if not already"""
         if message.chat.id in config.VERIFIED_USERS and message.chat.id not in subscribers.keys():
             database.save_sub(message.chat.id, None, 0)
             subscribers[message.chat.id] = list()
@@ -65,9 +51,9 @@ def deadliner0307():
         else:
             bot.send_message(message.chat.id, config.messages['not_verified'], reply_markup=command_keyboard())
 
-    # noinspection PyTypeChecker
     @bot.message_handler(commands='unsub')
-    def unsub(message):  # removing a user to subscribers list on his command if not already
+    def unsub(message: types.Message):
+        """Removing a user to subscribers list on his command if not already"""
         if message.chat.id in config.VERIFIED_USERS and message.chat.id in subscribers.keys():
             database.save_sub(message.chat.id, None, 1)
             subscribers.pop(message.chat.id)
@@ -78,15 +64,38 @@ def deadliner0307():
             bot.send_message(message.chat.id, config.messages['not_verified'], reply_markup=command_keyboard())
 
     @bot.message_handler(commands=['show_all', '📋Список'])
-    def show_all(message, called: bool = False):  # output all deadlines (expired deadlines stored until daily restart)
+    def show_all(message: types.Message, called: bool = False, show_ids: bool = False):
+        """
+        :param message: telegram Message object
+        :param called: whether the function is invoked from script (not by handler)
+        :param show_ids: whether deadlines IDs should be included in shown list (needed for admin functions)
+
+        Output all deadlines (expired deadlines stored until daily restart)
+        """
         if len(deadlines) == 0:
             bot.send_message(message.chat.id, config.messages['nothing_left'], reply_markup=command_keyboard())
         else:
-            text = f'Сейчас {my_collections.current_time().strftime("%d.%m %H:%M")}\n' + f'{config.messages["deadlines"]}\n'
-            for dl in deadlines:
-                text += f' -- \"{dl.subject}\" - \"{dl.task}\"\nдо [{convert_date(dl.date)}]'
+            text = create_all_text(message, show_ids)
+            if called:
+                bot.send_message(message.chat.id, text)
+            else:
+                bot.send_message(message.chat.id, text, reply_markup=command_keyboard())
+
+    def create_all_text(message: types.Message, show_ids: bool):
+        """
+         :param message: telegram Message object
+         :param show_ids: If true, deadlines IDs are included, signs are not included (warnings/marked done)
+
+        Prepare text with list of all deadlines for command '/show_all'
+        """
+        text = f'Сейчас {my_collections.current_time().strftime("%d.%m %H:%M")}\n' + f'{config.messages["deadlines"]}\n'
+        for dl in deadlines:
+            if show_ids:
+                text += f' -- {dl.id}  {dl.subject} - {dl.task}\nдо [{convert_date(dl.date)}]'
+            else:
+                text += f' -- {dl.subject} - {dl.task}\nдо [{convert_date(dl.date)}]'
                 if subscribers.get(message.chat.id) and dl in subscribers.get(
-                        message.chat.id):  # if deadline marked as done by user
+                        message.chat.id):  # if deadline marked as done by user put check mark
                     text += '\u2705\n'
                 else:
                     if delta_days(dl) < 1:  # if less than a day left put warning sign
@@ -96,20 +105,18 @@ def deadliner0307():
                             text += '\u26A0\n'
                     else:
                         text += '\n'
-            if called:
-                bot.send_message(message.chat.id, text)
-            else:
-                bot.send_message(message.chat.id, text, reply_markup=command_keyboard())
+        return text
 
     @bot.message_handler(commands=['add', '➕Добавить'])
-    def add(message):  # adding a new deadline. Verified users only.
+    def add(message: types.Message):
+        """Adding a new deadline. Verified users only."""
         if message.chat.id in config.VERIFIED_USERS:
             msg = bot.send_message(message.chat.id, config.messages['input_subj'])
             bot.register_next_step_handler(msg, get_subject, Deadline())
         else:
             bot.send_message(message.chat.id, config.messages['not_verified'])
 
-    def get_subject(message, new_deadline, edit_flag: bool = False):
+    def get_subject(message: types.Message, new_deadline: Deadline, edit_flag: bool = False):
         """Reading user's message, writing into subject of new deadline
         If new_deadline arg is passed, then editing its contents
         (for edit mode edit_flag should be true to proceed straight to confirm message)"""
@@ -204,6 +211,7 @@ def deadliner0307():
             bot.register_next_step_handler(msg, confirm_dl, new_dl)
 
     def edit_new(message: types.Message, new_dl: Deadline):
+        """ Edit before publishing menu """
         try:
             if message.text == 'Время':
                 msg = bot.send_message(message.chat.id, config.messages['input_date'])
@@ -223,7 +231,8 @@ def deadliner0307():
             bot.send_message(message.chat.id, config.messages["wrong_input"], reply_markup=command_keyboard())
 
     @bot.message_handler(commands=['delete', '❌Удалить'])
-    def delete(message):  # Deleting deadline last added by a verified user, any by an admin
+    def delete(message):
+        """Deleting deadline last added by a verified user, any by an admin"""
         if message.chat.id in config.ADMINS:
             if len(deadlines):
                 show_all(message)
@@ -242,7 +251,8 @@ def deadliner0307():
         else:
             bot.send_message(message.chat.id, config.messages['not_verified'], reply_markup=command_keyboard())
 
-    def delete_last(message):  # delete deadline last added by user
+    def delete_last(message):
+        """Delete deadline last added by user"""
         try:
             if message.text == 'Да':
                 database.save_deadline(last_added[message.chat.id], 1)
@@ -260,7 +270,7 @@ def deadliner0307():
     def delete_admin(message):  # delete deadline chosen by admin
         try:
             if message.text in deadline_names:
-                dl = deadline_by_name(message.text)
+                dl = my_collections.deadline_from_input(message.text, deadlines)
                 deadlines.remove(dl)
                 deadline_names.remove(message.text)
                 database.save_deadline(dl, 1)
@@ -286,7 +296,7 @@ def deadliner0307():
             uid = message.chat.id
             text = message.text
             if text in deadline_names:
-                chosen_dl = deadline_by_name(text)
+                chosen_dl = my_collections.deadline_from_input(text, deadlines)
                 if chosen_dl in subscribers[uid]:
                     subscribers[uid].remove(chosen_dl)
                     bot.send_message(uid, f'{config.messages["unmarked"]} \"{text}\"', reply_markup=command_keyboard())
@@ -343,7 +353,8 @@ def deadliner0307():
                     print(f"EXCEPTION ON SEND ANNOUNCEMENT:\n{ex}")
 
     @bot.message_handler(commands=['edit'])
-    def edit(message):  # edit date of a deadline. Admin function.
+    def edit(message):
+        """ edit date of a deadline. Admin function."""
         if message.chat.id in config.ADMINS:
             msg = bot.send_message(message.chat.id, config.messages['choose_edit'], reply_markup=all_dl_keyboard())
             bot.register_next_step_handler(msg, choose_edit)
@@ -354,7 +365,7 @@ def deadliner0307():
         """Determine edited deadline and pass it to get_date with edit_flag=1"""
         try:
             if message.text in deadline_names:
-                dl = deadline_by_name(message.text)
+                dl = my_collections.deadline_from_input(message.text, deadlines)
                 msg = bot.send_message(message.chat.id, config.messages['input_date'])
                 bot.register_next_step_handler(msg, get_date, dl, True)
             elif message.text == 'Отмена':
@@ -384,9 +395,9 @@ def deadliner0307():
 
     def all_dl_keyboard():
         """ Puts all deadlines in a keyboard as different buttons. Returns the keyboard object """
-        keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True)
+        keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True, resize_keyboard=True)
         for dl in deadlines:
-            keyboard.add(types.KeyboardButton(f'{dl.subject} | {dl.task}'))
+            keyboard.add(types.KeyboardButton(f'{dl.id} {dl.subject} | {dl.task}'))
         keyboard.add(types.KeyboardButton('Отмена'))
         return keyboard
 
@@ -401,11 +412,12 @@ def deadliner0307():
         for dl in deadlines:
             if my_collections.current_time().timestamp() > dl.date:
                 database.save_deadline(dl, 1)
+                database.clear_marked(dl.id)
                 dl.is_past = True
 
-    def notify_users():  # preparing notifications 1, 3, 7 days before deadline if haven't yet
+    def notify_users():  # preparing notifications 1, 3, 7 days before deadline if weren't sent yet
         for dl in deadlines:
-            if dl.notified == 0:
+            if dl.notified == 0:  # if deadline is fresh (no notifications were ever sent)
                 if 3 < delta_days(dl) < 7:
                     dl.notified = 7
                     database.save_deadline(dl, 2)
@@ -418,12 +430,12 @@ def deadliner0307():
                     dl.notified = 1
                     database.save_deadline(dl, 2)
                     send_notification(dl)
-            elif dl.notified == 7:
+            elif dl.notified == 7:  # notifications were sent 7 days before expiry
                 if delta_days(dl) < 3:
                     send_notification(dl)
                     dl.notified = 3
                     database.save_deadline(dl, 2)
-            elif dl.notified == 3:
+            elif dl.notified == 3:  # notification were sent 3 days before expiry
                 if delta_days(dl) < 1:
                     send_notification(dl)
                     dl.notified = 1
@@ -453,7 +465,7 @@ def deadliner0307():
                     print(f"EXCEPTION ON SEND NOTIFICATION:\n{ex}")
 
     Thread(target=auto_task).start()
-    bot.infinity_polling()
+    bot.polling(non_stop=True, timeout=50)
 
 
 def exception_handler(count: int = 0):
