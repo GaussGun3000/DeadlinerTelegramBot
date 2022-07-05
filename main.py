@@ -304,10 +304,8 @@ def deadliner0307():
                     subscribers[uid].append(chosen_dl)
                     bot.send_message(uid, f'{text} {config.messages["marked"]}', reply_markup=command_keyboard())
                 dl_list = list()  # preparing to update marked tasks in database
-                for dl in subscribers[uid]:
-                    dl_list.append(f'{dl.subject} | {dl.task}')
                 # my_collections.send_reward()
-                database.save_sub(uid, dl_list, 2)
+                database.save_sub(uid, subscribers[uid], 2)
             elif text == 'Отмена':
                 bot.send_message(message.chat.id, config.messages['cancel'], reply_markup=command_keyboard())
         except TypeError:

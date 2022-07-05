@@ -60,7 +60,7 @@ def save_deadline(dl: Deadline, add: int):
         try:
             cursor = db.cursor()
             if add == 0:
-                query = """INSERT INTO deadlines (subject, task, date, notified) VALUES (%s,%s,%s,%s,%s)"""
+                query = """INSERT INTO deadlines (subject, task, date, notified) VALUES (%s,%s,%s,%s)"""
                 cursor.execute(query, (subject, task, date, notified))
             elif add == 1:
                 query = """DELETE from deadlines where subject=%s AND task=%s"""
@@ -74,13 +74,16 @@ def save_deadline(dl: Deadline, add: int):
             print('DATABASE ON SAVE DL EXCEPTION:\n', er)
 
 
-def save_sub(user_id: int, marked_done: Union[list, None], add: int):
+def save_sub(user_id: int, marked_done: Union[list[Deadline], None], add: int):
     """
+    :param user_id: Telegram user id (a key of subscribers dict from main.py)
     :param add: Defines action: 0 - add new row, 1 - remove row, 2 - update row
+    :param marked_done: list of deadlines marked by user
 
     Saving a subscriber and his tasks marked as done to database.
     """
     with __connect() as db:
+        dl_ids = [dl.id for dl in marked_done]
         try:
             cursor = db.cursor()
             if add == 0:
@@ -91,7 +94,7 @@ def save_sub(user_id: int, marked_done: Union[list, None], add: int):
                 cursor.execute(query, (user_id, ))
             else:
                 query = """UPDATE subscribers set marked_done=%s where user_id=%s"""
-                cursor.execute(query, ('_'.join(marked_done), user_id))
+                cursor.execute(query, (dl_ids, user_id))
             cursor.close()
             db.commit()
         except psycopg2.Error as er:
@@ -127,7 +130,7 @@ def load():
                 if data[1]:
                     subscribers[int(data[0])] = [Deadline.find(x, deadlines) for x in data[1]]
                 else:
-                    subscribers[data[0]] = list()
+                    subscribers[int(data[0])] = list()
             return deadlines, subscribers
         except psycopg2.Error as er:
             print('DATABASE ON LOAD EXCEPTION:\n', er)
