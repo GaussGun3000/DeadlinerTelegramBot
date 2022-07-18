@@ -1,0 +1,5 @@
+pyTelegramBotAPI==4.1.0
+psycopg2==2.9.1
+pytz==2021.1
+dataclasses~=0.6
+pybrake~=1.0.4
