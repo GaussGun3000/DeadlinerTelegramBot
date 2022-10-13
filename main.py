@@ -113,7 +113,7 @@ def deadliner0307():
         """Adding a new deadline. Verified users only."""
         if message.chat.id in config.VERIFIED_USERS:
             msg = bot.send_message(message.chat.id, config.messages['input_subj'])
-            bot.register_next_step_handler(msg, get_subject, Deadline(id=nonloc_max_id))
+            bot.register_next_step_handler(msg, get_subject, Deadline(id=nonloc_max_id + 1))
         else:
             bot.send_message(message.chat.id, config.messages['not_verified'])
 
