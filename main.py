@@ -26,6 +26,7 @@ def deadliner0307():
     bot = telebot.TeleBot(config.TOKEN)
     # list of Deadline data objects (check database.py); dict of users subscribed and tasks they marked as done:
     deadlines, subscribers = database.load()
+    nonloc_max_id = Deadline.get_max_id(deadlines)
 
     deadline_names = list()  # list of "deadline names" to verify user input is from telegram keyboard
     for dln in deadlines:
@@ -112,7 +113,7 @@ def deadliner0307():
         """Adding a new deadline. Verified users only."""
         if message.chat.id in config.VERIFIED_USERS:
             msg = bot.send_message(message.chat.id, config.messages['input_subj'])
-            bot.register_next_step_handler(msg, get_subject, Deadline())
+            bot.register_next_step_handler(msg, get_subject, Deadline(id=nonloc_max_id))
         else:
             bot.send_message(message.chat.id, config.messages['not_verified'])
 
@@ -188,6 +189,7 @@ def deadliner0307():
     def confirm_dl(message, new_dl: Deadline):  # getting confirmation to add a new deadline.
         try:
             if message.text == 'Да':
+                nonlocal nonloc_max_id
                 new_dl.notified = 0
                 deadlines.append(new_dl)
                 database.save_deadline(new_dl, 0)
@@ -195,6 +197,7 @@ def deadliner0307():
                 bot.send_message(message.chat.id, config.messages['successful_add'], reply_markup=command_keyboard())
                 last_added[message.chat.id] = new_dl
                 deadline_names.append(f'{new_dl.subject} | {new_dl.task}')
+                nonloc_max_id += 1
             elif message.text == 'Нет':
                 bot.send_message(message.chat.id, config.messages['deleted'], reply_markup=command_keyboard())
             elif message.text == 'Редактировать':

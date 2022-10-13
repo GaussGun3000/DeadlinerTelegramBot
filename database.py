@@ -26,6 +26,14 @@ class Deadline:
         else:
             raise(IndexError("Deadlines.find(): no deadline with this ID"))
 
+    @staticmethod
+    def get_max_id(dl_list: list):
+        max_id = 0
+        for dl in dl_list:
+            if max_id < dl.id:
+                max_id = dl.id
+        return max_id
+
 
 def deadline_by_name(name: str, deadlines: list[Deadline]):  # find a Deadline object by subject and task
     subj, task = name.split(' | ')
