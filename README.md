@@ -42,6 +42,7 @@ dl_id       |  integer | Уникальный номер. PRIMARY KEY, autoincre
 subject     |  text    | Предмет дедлайна
 task        |  text    | Описание задания
 notified    |  integer | Состояние уведомления подписчиков о дедлайне (0/7/3/1)
+date        |  real    | Дата истечения
 
 Колонны (поля) таблицы subscribers:
 Название    |   Тип     |              Описание 
