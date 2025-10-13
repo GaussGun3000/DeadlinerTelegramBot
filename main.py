@@ -509,6 +509,22 @@ async def save_notification_profile(update: Update, context: ContextTypes.DEFAUL
                 reply_markup=command_keyboard())
     return ConversationHandler.END
 
+async def all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Tag everyone in the current topic / message thread."""
+    chat = update.effective_chat
+    message = update.effective_message
+
+    if chat.type not in ("group", "supergroup"):
+        await message.reply_text("❌ Команда только для общего чата ❌")
+        return
+
+    mention_text = " ".join(config.ALL_USERNAMES)
+    await context.bot.send_message(
+        chat_id=chat.id,
+        text=mention_text,
+        reply_to_message_id=message.message_id
+    )
+
 # ===== PTB JobQueue scheduler (replacement for the thread loop) =====
 async def clear_past(context: ContextTypes.DEFAULT_TYPE):
     """Clear all expired deadlines from DATABASE (not deadlines list)"""
@@ -684,6 +700,7 @@ def build_application():
     app.add_handler(CommandHandler("admin_help", admin_help))
     app.add_handler(CommandHandler("verify", verify_cmd))
     app.add_handler(CommandHandler("unverify", unverify_cmd))
+    app.add_handler(CommandHandler("all", all_command))
 
     # Emoji-button “commands” (buttons send text like "/📋Список", "/➕Добавить", etc.)
     app.add_handler(MessageHandler(filters.Regex(r"^/📋Список$"), show_all))

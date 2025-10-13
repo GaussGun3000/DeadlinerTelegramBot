@@ -10,3 +10,5 @@ PERIOD = 180  # time between periodic tasks in sec
 GROUP_CHAT_ID = -1002717878878
 DEADLINES_TOPIC = 2017
 ANNOUNCE_TOPIC = 2025
+ALL_USERNAMES = ['@fateborn', '@Menoitami', '@artger3', '@dontknowforsure',
+                 '@gauss_gun', '@denchik_iz_bostona', '@pbsav', '@yalekseyy', '@batoqqqa' ]
