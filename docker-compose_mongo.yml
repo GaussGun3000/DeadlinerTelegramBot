@@ -1,0 +1,36 @@
+services:
+  mongo:
+    image: mongo:7
+    container_name: deadliner-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: deadliner
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD-SHELL", "mongosh --eval 'db.adminCommand({ ping: 1 })' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "27017:27017"
+
+  bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: deadliner-bot
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      # ---- required ----
+      BOT_TOKEN: ${BOT_TOKEN}
+      MONGO_URI: ${MONGO_URI}
+      DB_NAME: ${DB_NAME:-deadliner}
+      TZ: ${TZ:-Europe/Moscow}
+      PYTHONUNBUFFERED: "1"
+
+volumes:
+  mongo_data:
