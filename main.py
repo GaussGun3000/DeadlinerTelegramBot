@@ -262,6 +262,10 @@ async def delete_last(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if text == 'Да':
             database.save_deadline(last_added[uid], 1)
+            database.clear_marked(last_added[uid].id)
+            dl_name = f'{last_added[uid].id} {last_added[uid].subject} | {last_added[uid].task}'
+            if dl_name in deadline_names:
+                deadline_names.remove(dl_name)
             deadlines.remove(last_added[uid])
             last_added.pop(uid, None)
             await _send(context, uid, messages['deleted'], reply_markup=command_keyboard())
@@ -334,6 +338,9 @@ async def choose_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         if text in deadline_names:
             dl = my_collections.deadline_from_input(text, deadlines)
+            if dl is None:
+                await _send(context, update.effective_chat.id, messages['oops'], reply_markup=command_keyboard())
+                return ConversationHandler.END
             context.user_data['edit_dl'] = dl
             await _send(context, update.effective_chat.id, messages['input_date'])
             return DATE
@@ -343,7 +350,7 @@ async def choose_edit(update: Update, context: ContextTypes.DEFAULT_TYPE):
         else:
             await _send(context, update.effective_chat.id, messages['oops'], reply_markup=command_keyboard())
             return ConversationHandler.END
-    except TypeError:
+    except Exception:
         await _send(context, update.effective_chat.id, messages['wrong_input'], reply_markup=command_keyboard())
         return ConversationHandler.END
 
@@ -527,13 +534,16 @@ async def all_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== PTB JobQueue scheduler (replacement for the thread loop) =====
 async def clear_past(context: ContextTypes.DEFAULT_TYPE):
-    """Clear all expired deadlines from DATABASE (not deadlines list)"""
+    """Clear all expired deadlines from database and in-memory lists."""
     now_ts = my_collections.current_time().timestamp()
-    for dl in deadlines:
-        if now_ts > dl.date:
-            database.save_deadline(dl, 1)
-            database.clear_marked(dl.id)
-            dl.is_past = True
+    to_remove = [dl for dl in deadlines if now_ts > dl.date]
+    for dl in to_remove:
+        database.save_deadline(dl, 1)
+        database.clear_marked(dl.id)
+        deadlines.remove(dl)
+        dl_name = f'{dl.id} {dl.subject} | {dl.task}'
+        if dl_name in deadline_names:
+            deadline_names.remove(dl_name)
 
 async def send_notification(context: ContextTypes.DEFAULT_TYPE, dl: Deadline, update: bool = False):
     """Sending notification about a deadline (async, PTB-native)."""

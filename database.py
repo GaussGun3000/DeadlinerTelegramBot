@@ -89,9 +89,8 @@ def save_deadline(dl: Deadline, add: int):
             # delete by subject+task (keeps parity with your old code)
             col.delete_one({"subject": dl.subject, "task": dl.task})
         else:
-            # update notified/date by subject+task
             col.update_one(
-                {"subject": dl.subject, "task": dl.task},
+                {"_id": dl.id},
                 {"$set": {"date": float(dl.date)}}
             )
     except PyMongoError as er:

@@ -77,6 +77,6 @@ def deadline_from_input(input_text: str, deadlines: list[Deadline]):
         split = input_text.split(' ', 1)
         dl_id = int(split[0])
         return Deadline.find(dl_id, deadlines)
-    except ValueError:
-        print("Value error at deadline_from_input!")
+    except (ValueError, IndexError):
+        print("Error at deadline_from_input!")
         return None
